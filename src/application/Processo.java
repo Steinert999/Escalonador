@@ -2,7 +2,7 @@ package application;
 
 
 public class Processo {
-	 	private final String id;
+	 	private final int id;
 	    private int duracao,  chegada, prioridade;
 	    private int espera, turnaround;
 	    private int inter;
@@ -13,7 +13,7 @@ public class Processo {
 	     * @param chegada tempo de chegada do Processos
 	     * @param duracao tempo de duração do Processos
 	     */
-	    public Processo(String id, int chegada, int duracao){
+	    public Processo(int id, int chegada, int duracao){
 	        this.id = id;
 	        this.chegada = chegada;
 	        this.duracao = duracao;
@@ -29,7 +29,7 @@ public class Processo {
 	     * @param duracao
 	     * @param prioridade
 	     */
-	    public Processo(String id, int chegada,int duracao, int prioridade) {
+	    public Processo(int id, int chegada,int duracao, int prioridade) {
 	        this.id = id;
 	        this.chegada = chegada;
 	        this.duracao = duracao;
@@ -61,7 +61,7 @@ public class Processo {
 	     */
 	    public boolean igual(Processo p)
 	    {
-	        if(p.getId().equals(this.getId()) && p.getChegada() == this.getChegada()
+	        if(p.getId() == (this.getId()) && p.getChegada() == this.getChegada()
 	                && p.getDuracao()==this.getDuracao() && p.getPrioridade() == this.getPrioridade())
 	            return true;
 	        else
@@ -71,7 +71,7 @@ public class Processo {
 	    /**
 	     * @return o id (código) do Processos
 	     */
-	    public String getId() {
+	    public int getId() {
 	        return id;
 	    }
 
@@ -142,14 +142,14 @@ public class Processo {
 	    /**
 	     * @return the inter
 	     */
-		public int getinter() {
+		public int getInter() {
 			return inter;
 		}
 		
 		/**
 	     * @param inter the inter to set
 	     */
-	    public void setinter(int inter) {
+	    public void setInter(int inter) {
 	        this.inter = inter;
 	    }
 }

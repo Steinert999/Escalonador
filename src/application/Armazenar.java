@@ -5,13 +5,11 @@ import java.io.File;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
 
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
-
-import application.Escalonador;
-import application.Processo;
 
 public class Armazenar {
 	 /**
@@ -19,11 +17,11 @@ public class Armazenar {
      * É feita a validação no formato do aquivo e dados dos processos.
      * @return lista de processos carregados (null em caso de erro)
      */
-    public static ArrayList<Processo> ler() {
-        ArrayList<Processo> lista_procs = null;
+    public static List<Processo> ler() {
+        List<Processo> lista_procs = null;
         String linha;
         int i;
-        String pNome;
+        int pNome;
         String sCheg, sDur, sPrio;
         int iCheg, iDur, iPrio;
 
@@ -49,7 +47,7 @@ public class Armazenar {
                     
                     if (!linha.isEmpty()) //ignora linhas em branco no arquivo
                     {
-                        pNome = "P" + i;
+                        pNome = i;
                         StringTokenizer st = new StringTokenizer(linha, ";");
                         try {
                             sCheg = st.nextToken();
@@ -93,7 +91,7 @@ public class Armazenar {
      * Grava em arquivo os dados de uma lista de processos
      * @param lista processos a serem gravados
      */
-    public static void gravar(ArrayList<Processo> lista) {
+    public static void gravar(List<Processo> lista) {
         FileNameExtensionFilter filter = new FileNameExtensionFilter("Processos (*.prc)", "prc");
         javax.swing.JFileChooser arquivo = new javax.swing.JFileChooser();
         arquivo.setAcceptAllFileFilterUsed(false);
