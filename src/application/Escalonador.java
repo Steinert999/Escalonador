@@ -21,12 +21,8 @@ public class Escalonador {
 	}
 	
 	public static boolean validateEntry(Deque<Processo> lista) {
-		if(lista == null || lista.isEmpty()) {
-			return false;
-		}
-		if(lista.stream().anyMatch(p -> p.getChegada() < 0  || p.getDuracao() < 0 || p.getPrioridade() < 0)) {
-			return false;
-		}
+		if(lista == null || lista.isEmpty()) return false;
+		if(lista.stream().anyMatch(p -> p.getChegada() < 0  || p.getDuracao() < 0 || p.getPrioridade() < 0)) return false;
 		return true;
 	}
 	
@@ -42,7 +38,7 @@ public class Escalonador {
 			return p.stream().sorted(Comparator.comparing(Processo::getChegada)).collect(Collectors.toCollection(ArrayDeque::new));
 		case DURACAO:
 			return  p.stream().sorted(Comparator.comparing(Processo::getDuracao)).collect(Collectors.toCollection(ArrayDeque::new));
-		case PRIORIDADE: // decrescente
+		case PRIORIDADE:
 			return p.stream().sorted(Comparator.comparing(Processo::getPrioridade).reversed()).collect(Collectors.toCollection(ArrayDeque::new));
 		case NOME:
 			return p.stream().sorted(Comparator.comparing(Processo::getId)).collect(Collectors.toCollection(ArrayDeque::new));
@@ -50,186 +46,114 @@ public class Escalonador {
 		return null;
 	}
 	
-	
-	  /**
-     * Escalonador First Came, First Served (FCFS)
-     * Faz o escalonamento n�o preemptivo, por ordem de chegada.
-     */
-    public void escalonarFCFS() {
+	// Escalonamento por ordem de chegada
+    public void escalonadorArrivalOrder() {
 
-    	// se n�o h� processos validos n�o escalona
         if(!validateEntry(entry))
             return;
         
         logger.info("===================== ESCALONAMENTO POR ORDEM DE CHEGADA =====================");
-        
-        
         ready = new ArrayDeque<>();
         result = new ArrayDeque<>();
         Processo running;
-
-        Long tempoAtual;
-
+        Long currentTime;
         this.entry = sort(entry, OrdenacaoProcessos.CHEGADA);
-        
-        tempoAtual = entry.getFirst().getChegada();
-        
-        entry.stream().forEach(p ->  {
-        	logInitProcess(p);
-        });
+        currentTime = entry.getFirst().getChegada();
+        entry.stream().forEach(p ->  logInitProcess(p) );
         ready.add(entry.getFirst());
         entry.removeFirst();
                 
-         //Enquanto existem processos na fila de entrada ou de Prontos
         while (!ready.isEmpty() || !entry.isEmpty()) {
         	
-        	putEntryProcess(tempoAtual);
+        	putEntryProcess(currentTime);
         	
-            if (!ready.isEmpty()) {
-            	
-               this.ready = sort(ready, OrdenacaoProcessos.CHEGADA);
-               
-                running = ready.getFirst();
-                
-                logRunningProcess(running);
-                
-                ready.removeFirst();
-                
-                calculateRuntimeProcess(running, tempoAtual);
-                
-                logSucess(running);
-                
+            if (!ready.isEmpty()) {            	
+                this.ready = sort(ready, OrdenacaoProcessos.CHEGADA);               
+                running = ready.getFirst();                
+                logRunningProcess(running);                
+                ready.removeFirst();                
+                calculateRuntimeProcess(running, currentTime);            
+                logSucess(running);                
                 result.add(running);
-
             } else if(!entry.isEmpty()) {
-                	Long time = entry.getFirst().getChegada();
-                    tempoAtual = time;
-                }
+            	Long time = entry.getFirst().getChegada();
+                currentTime = time;
+            }
         }
     }
 
-	/**
-     * Escalonador Sortest Job First (SJF) Não-Preemptivo
-     * Faz o escalonamento não preemptivo levando em consideração a chegada e tendo
-     * como prioridade os processos de menor duração.
-     */
-    public void escalonarSJFnP() {
-    	Long tempoAtual;
-        Processo running;
+    // Escalonador por menor dura��o
+    public void escalonarShortDuration() {
 
-        //se não há um conjunt de processos válidos não escalona
         if(!validateEntry(entry))
             return;
         
         logger.info("===================== ESCALONAMENTO POR DURA��O =====================");
-
+        Long currentTime;
+        Processo running;
         result = new ArrayDeque<>();
         ready = new ArrayDeque<>();
-
         this.entry = sort(entry, OrdenacaoProcessos.CHEGADA);
-
-        tempoAtual = entry.getFirst().getChegada();
-        entry.stream().forEach(p ->  {
-        	logInitProcess(p);
-        });
+        currentTime = entry.getFirst().getChegada();
+        entry.stream().forEach(p ->  logInitProcess(p) );
         ready.add(entry.getFirst());
         entry.removeFirst();
 
-        //Enquanto existem processos na fila de entrada ou de Prontos
-        while (!ready.isEmpty() || !entry.isEmpty())
-        {
-            //se chegaram novos processos, coloca na fila de prontos
-        	putEntryProcess(tempoAtual);        	
-            //verifica se existem processos na fila de prontos
-            if (!ready.isEmpty())
-            {
-                //pega o próximo processo de menor duração na fila de prontos
+        while (!ready.isEmpty() || !entry.isEmpty()) {
+        	putEntryProcess(currentTime);        	
+            if (!ready.isEmpty()) {
                 this.ready = sort(ready, OrdenacaoProcessos.DURACAO);
                 running = ready.getFirst();
-                ready.removeFirst();
-                
+                ready.removeFirst();                
                 logRunningProcess(running);
-
-                calculateRuntimeProcess(running, tempoAtual);
-
-                logSucess(running);
-                
+                calculateRuntimeProcess(running, currentTime);
+                logSucess(running);                
                 result.add(running);                
             }
-            else
-            {
-                 //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entry.isEmpty())
-                {
-                    //aponta para o próximo da fila para pegar o tempo de chegada
+            else{
+                if(!entry.isEmpty()){
                 	Long time = entry.getFirst().getChegada();
-                    tempoAtual = time;
+                    currentTime = time;
                 }
             }
         }
     }
 
-    /**
-     * Escalonador por Prioridade n�o-Preemptivo
-     * Faz o escalonamento n�o preemptivo levando em considera��o a chegada e tendo
-     * como prioridade o valor de prioridade dos processos.
-     * Valor resultado maior resultado de prioridade indicam maior importancia.
-     */
-    public void escalonarPrioridadeNP() {
-    	Long tempoAtual;
-        Processo running;
+    // Escalonador por prioridade
+    public void escalonarPrioridade() {
 
-        //se não há um conjunt de processos válidos não escalona
         if(!validateEntry(entry))
             return;
         
         logger.info("===================== ESCALONAMENTO POR PRIORIDADE =====================");
-
+        Long tempoAtual;
+        Processo running;
         result = new ArrayDeque<>();
         ready = new ArrayDeque<>();
-
         this.entry = sort(entry, OrdenacaoProcessos.CHEGADA);
-
         entry.stream().forEach(p -> logInitProcess(p));
-        
         tempoAtual = entry.getFirst().getChegada();
         ready.add(entry.getFirst());
         entry.removeFirst();
 
-        //Enquanto existem processos na fila de entrada ou de Prontos
-        while (!ready.isEmpty() || !entry.isEmpty())
-        {
-            //se chegaram novos processos, coloca na fila de prontos
+        while (!ready.isEmpty() || !entry.isEmpty()){
         	putEntryProcess(tempoAtual);
-            if (!ready.isEmpty())
-            {
-                //pega o próximo processo de maior prioridade na fila de prontos
-                this.ready = sort(ready, OrdenacaoProcessos.PRIORIDADE);
-                
-                running = ready.getFirst();
-                
-                ready.removeFirst();
-                
-                logRunningProcess(running);
-                
-                calculateRuntimeProcess(running, tempoAtual);
-                
-                logSucess(running);
-                
+            if (!ready.isEmpty()){
+                this.ready = sort(ready, OrdenacaoProcessos.PRIORIDADE);               
+                running = ready.getFirst();                
+                ready.removeFirst();                
+                logRunningProcess(running);                
+                calculateRuntimeProcess(running, tempoAtual);                
+                logSucess(running);                
                 result.add(running);
             }
-            else
-            {
-                //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entry.isEmpty())
-                {
-                    //aponta para o próximo da fila para pegar o tempo de chegada
+            else{
+                if(!entry.isEmpty()){
                 	Long time = entry.getFirst().getChegada();
                     tempoAtual = time;
                 }
             }
         }
-
     }
 	
 	public void calculateRuntimeProcess(Processo p, Long runtime) {
@@ -270,6 +194,7 @@ public class Escalonador {
 	}
     
 	public Deque<Processo> getResultado() {
+		System.out.println("RESULTADO" + result);
 		return result;
 	}
 }
