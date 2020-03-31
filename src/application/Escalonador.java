@@ -1,47 +1,53 @@
 package application;
 
-import java.util.ArrayList;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.Comparator;
-import java.util.List;
+import java.util.Deque;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
-
 
 public class Escalonador {
 	
-	private List<Processo> entrada;
-	private List<Processo> resultado;
-	private List<Processo> pronto;
+	private Deque<Processo> entry;
+	private Deque<Processo> result;
+	private Deque<Processo> ready;
 	
-	private float mEspera, mTurnAround;
+	Logger logger = Logger.getLogger("LOGGER");
 	
-	public Escalonador(List<Processo> list) {
+	public Escalonador(Deque<Processo> list) {
 		setEntrada(list);
 	}
 	
-	public static boolean validaEntrada(List<Processo> lista) {
-		if(lista == null || lista.isEmpty()) return false;
-		if(lista.stream().anyMatch(p -> p.getChegada() < 0 || p.getDuracao() < 0 || p.getPrioridade() < 0)) return true;
-		return false;
+	public static boolean validateEntry(Deque<Processo> lista) {
+		if(lista == null || lista.isEmpty()) {
+			return false;
+		}
+		if(lista.stream().anyMatch(p -> p.getChegada() < 0  || p.getDuracao() < 0 || p.getPrioridade() < 0)) {
+			return false;
+		}
+		return true;
 	}
 	
-	public void setEntrada(List<Processo> lista) {
-		if(!validaEntrada(lista)) return;
-		entrada = new ArrayList<>();
-		lista.stream().forEach(p -> entrada.add(new Processo(p)));
+	public void setEntrada(Deque<Processo> lista) {
+		if(!validateEntry(lista)) return;
+		entry = lista;
 	}
 	
-	public void ordenar(List<Processo> p , OrdenacaoProcessos ord) {
+	public Deque<Processo> sort(Deque<Processo> p , OrdenacaoProcessos ord) {
 		
 		switch (ord) {
 		case CHEGADA:
-			p =  p.stream().sorted(Comparator.comparing(Processo::getChegada)).collect(Collectors.toList());
+			return p.stream().sorted(Comparator.comparing(Processo::getChegada)).collect(Collectors.toCollection(ArrayDeque::new));
 		case DURACAO:
-			p = p.stream().sorted(Comparator.comparing(Processo::getDuracao)).collect(Collectors.toList());
+			return  p.stream().sorted(Comparator.comparing(Processo::getDuracao)).collect(Collectors.toCollection(ArrayDeque::new));
 		case PRIORIDADE: // decrescente
-			p = p.stream().sorted(Comparator.comparing(Processo::getPrioridade).reversed()).collect(Collectors.toList());
+			return p.stream().sorted(Comparator.comparing(Processo::getPrioridade).reversed()).collect(Collectors.toCollection(ArrayDeque::new));
 		case NOME:
-			p = p.stream().sorted(Comparator.comparing(Processo::getId)).collect(Collectors.toList());
+			return p.stream().sorted(Comparator.comparing(Processo::getId)).collect(Collectors.toCollection(ArrayDeque::new));
 		}
+		return null;
 	}
 	
 	
@@ -49,513 +55,221 @@ public class Escalonador {
      * Escalonador First Came, First Served (FCFS)
      * Faz o escalonamento n�o preemptivo, por ordem de chegada.
      */
-
     public void escalonarFCFS() {
 
     	// se n�o h� processos validos n�o escalona
-        if(!validaEntrada(entrada))
+        if(!validateEntry(entry))
             return;
-        pronto = new ArrayList<>();
-        resultado = new ArrayList<>();
-        Processo executando;
-
-        int tempoAtual;
-
-        ordenar(entrada, OrdenacaoProcessos.CHEGADA);
-        mEspera = 0;
-        mTurnAround = 0;
-
-        tempoAtual = entrada.get(0).getChegada();
         
-        pronto.add(entrada.get(0));
-        entrada.remove(0);
+        logger.info("===================== ESCALONAMENTO POR ORDEM DE CHEGADA =====================");
+        
+        
+        ready = new ArrayDeque<>();
+        result = new ArrayDeque<>();
+        Processo running;
 
-         //Enquanto existem processos na fila de entrada ou de Prontos
-        while (!pronto.isEmpty() || !entrada.isEmpty()) {
-            //se chegaram novos processos, coloca na fila de prontos
-            while (!entrada.isEmpty() && entrada.get(0).getChegada() <= tempoAtual) {
-                if (entrada.get(0).getChegada() <= tempoAtual) {
-                    pronto.add(entrada.get(0));
-                    entrada.remove(0);
-                }
-            }
-            if (!pronto.isEmpty()) {
-                ordenar(pronto, OrdenacaoProcessos.CHEGADA);
-                //pega o próximo processo de menor duração na fila de prontos
-                executando = pronto.get(0);
-                pronto.remove(0);
+        Long tempoAtual;
+
+        this.entry = sort(entry, OrdenacaoProcessos.CHEGADA);
+        
+        tempoAtual = entry.getFirst().getChegada();
+        
+        entry.stream().forEach(p ->  {
+        	logInitProcess(p);
+        });
+        ready.add(entry.getFirst());
+        entry.removeFirst();
                 
-                //calcula os tempos para o processo atual
-                executando.setEspera(tempoAtual - executando.getChegada());
-                //atualiza o tempo atual
-                tempoAtual += executando.getDuracao();
-                //atualiza o tempo de execução do processo
-                executando.setTurnaround(tempoAtual - executando.getChegada());
-                resultado.add(executando);
+         //Enquanto existem processos na fila de entrada ou de Prontos
+        while (!ready.isEmpty() || !entry.isEmpty()) {
+        	
+        	putEntryProcess(tempoAtual);
+        	
+            if (!ready.isEmpty()) {
+            	
+               this.ready = sort(ready, OrdenacaoProcessos.CHEGADA);
+               
+                running = ready.getFirst();
+                
+                logRunningProcess(running);
+                
+                ready.removeFirst();
+                
+                calculateRuntimeProcess(running, tempoAtual);
+                
+                logSucess(running);
+                
+                result.add(running);
 
-                mEspera += executando.getEspera();
-                mTurnAround += executando.getTurnaround();
-            }
-            else
-                //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entrada.isEmpty())
-                {
-                    //aponta para o próximo da fila para pegar o tempo de chegada
-                    int tempo = entrada.get(0).getChegada();
-                    tempoAtual = tempo;   }
-                //tempoAtual++;
+            } else if(!entry.isEmpty()) {
+                	Long time = entry.getFirst().getChegada();
+                    tempoAtual = time;
+                }
         }
-
-        mEspera /= resultado.size();
-        mTurnAround /= resultado.size();
     }
 
-    /**
+	/**
      * Escalonador Sortest Job First (SJF) Não-Preemptivo
      * Faz o escalonamento não preemptivo levando em consideração a chegada e tendo
      * como prioridade os processos de menor duração.
      */
     public void escalonarSJFnP() {
-        int tempoAtual;
-        Processo executando;
+    	Long tempoAtual;
+        Processo running;
 
         //se não há um conjunt de processos válidos não escalona
-        if(!validaEntrada(entrada))
+        if(!validateEntry(entry))
             return;
+        
+        logger.info("===================== ESCALONAMENTO POR DURA��O =====================");
 
-        resultado = new ArrayList<>();
-        pronto = new ArrayList<>();
+        result = new ArrayDeque<>();
+        ready = new ArrayDeque<>();
 
-        ordenar(entrada, OrdenacaoProcessos.CHEGADA);
+        this.entry = sort(entry, OrdenacaoProcessos.CHEGADA);
 
-        mEspera = 0;
-        mTurnAround = 0;
-        tempoAtual = entrada.get(0).getChegada();
-        pronto.add(entrada.get(0));
-        entrada.remove(0);
+        tempoAtual = entry.getFirst().getChegada();
+        entry.stream().forEach(p ->  {
+        	logInitProcess(p);
+        });
+        ready.add(entry.getFirst());
+        entry.removeFirst();
 
         //Enquanto existem processos na fila de entrada ou de Prontos
-        while (!pronto.isEmpty() || !entrada.isEmpty())
+        while (!ready.isEmpty() || !entry.isEmpty())
         {
             //se chegaram novos processos, coloca na fila de prontos
-            while (!entrada.isEmpty() && entrada.get(0).getChegada() <= tempoAtual)
-            {
-                if (entrada.get(0).getChegada() <= tempoAtual)
-                {
-                    pronto.add(entrada.get(0));
-                    entrada.remove(0);
-                }
-            }
+        	putEntryProcess(tempoAtual);        	
             //verifica se existem processos na fila de prontos
-            if (!pronto.isEmpty())
+            if (!ready.isEmpty())
             {
                 //pega o próximo processo de menor duração na fila de prontos
-                ordenar(pronto, OrdenacaoProcessos.DURACAO);
-                executando = pronto.get(0);
-                pronto.remove(0);
-                //calcula a execução do processo atual
-                executando.setEspera(tempoAtual - executando.getChegada());
-                tempoAtual += executando.getDuracao();
-                executando.setTurnaround(tempoAtual - executando.getChegada());
+                this.ready = sort(ready, OrdenacaoProcessos.DURACAO);
+                running = ready.getFirst();
+                ready.removeFirst();
+                
+                logRunningProcess(running);
 
-                //adiciona ao Array de saída
-                resultado.add(executando);
+                calculateRuntimeProcess(running, tempoAtual);
 
-                mEspera += executando.getEspera();
-                mTurnAround += executando.getTurnaround();
+                logSucess(running);
+                
+                result.add(running);                
             }
             else
             {
                  //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entrada.isEmpty())
+                if(!entry.isEmpty())
                 {
                     //aponta para o próximo da fila para pegar o tempo de chegada
-                    int tempo = entrada.get(0).getChegada();
-                    tempoAtual = tempo;
+                	Long time = entry.getFirst().getChegada();
+                    tempoAtual = time;
                 }
             }
         }
-        //calcula os tempos médios de espera e turnaround
-        mEspera /= resultado.size();
-        mTurnAround /= resultado.size();
     }
 
     /**
-     * Escalonador Sortest Remaining Time (SRT) Preemptivo
-     * Faz o escalonamento preemptivo levando em consideração a chegada e tendo
-     * como prioridade os processos de menor duração.
-     * É a versão preemptiva do SJF.
-     */
-    public void escalonarSRT() {
-        int tempoAtual;
-        Processo executando = null;
-
-        //se não há um conjunto de processos válidos não escalona
-        if(!validaEntrada(entrada))
-            return;
-
-        resultado = new ArrayList<>();
-        pronto = new ArrayList<>();
-
-        ordenar(entrada, OrdenacaoProcessos.CHEGADA);
-
-        mEspera = 0;
-        mTurnAround = 0;
-        tempoAtual = entrada.get(0).getChegada();
-        pronto.add(entrada.get(0));
-        entrada.remove(0);
-
-        //Enquanto exixtem processos na fila de entrada ou de Prontos ou o último processo não acabou
-        while (!pronto.isEmpty() || !entrada.isEmpty() || executando != null)
-        {
-            //se chegaram novos processos, coloca na fila de prontos
-            while (!entrada.isEmpty() && entrada.get(0).getChegada() <= tempoAtual)
-            {
-                if (entrada.get(0).getChegada() <= tempoAtual)
-                {
-                    pronto.add(entrada.get(0));
-                    entrada.remove(0);
-                    ordenar(pronto, OrdenacaoProcessos.DURACAO);
-                }
-            }
-            //verifica se tem processo na fila de prontos OU algum processo executando
-            if (!pronto.isEmpty() || executando != null)
-            {
-                //Verifica se há prioridade para interromper
-                if (executando != null) //se tem processo executando
-                {
-                    //processo na fila é de menor duração? Sim = troca
-                    if (!pronto.isEmpty())
-                        if (executando.getDuracao() > pronto.get(0).getDuracao())
-                        {
-                            executando.setInter(tempoAtual);//tempo onde foi interrompido
-                            pronto.add(executando);
-                            executando = pronto.get(0);
-                            pronto.remove(0);
-                            ordenar(pronto, OrdenacaoProcessos.DURACAO);
-                            //atualiza o tempo de espera do processo
-                            executando.setEspera(executando.getEspera() + tempoAtual - executando.getInter());
-                        }
-                }
-                else //pega o primeiro dos prontos
-                {
-                    executando = pronto.get(0);
-                    pronto.remove(0);
-                    //atualiza o tempo de espera do processo
-                    executando.setEspera(executando.getEspera() + tempoAtual - executando.getInter());
-                }
-                //calcula a execução do processo atual
-                tempoAtual++;
-
-                executando.DecDuracao();
-
-                //se terminou adiciona ao Arry de saída
-                if (executando.getDuracao() == 0)
-                {
-                    executando.setTurnaround(tempoAtual - executando.getChegada());
-                    resultado.add(executando);
-                    mEspera += executando.getEspera();
-                    mTurnAround += executando.getTurnaround();
-                    executando = null;
-                }
-            }
-            else
-            {
-                 //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entrada.isEmpty())
-                {
-                    //aponta para o próximo da fila para pegar o tempo de chegada
-                    int tempo = entrada.get(0).getChegada();
-                    tempoAtual = tempo;
-                }
-            }
-
-        }
-        //calcula os tempos médios de espera e turnaround
-        mEspera /= resultado.size();
-        mTurnAround /= resultado.size();
-    }
-
-    /**
-     * Escalonador por Prioridade Não-Preemptivo
-     * Faz o escalonamento não preemptivo levando em consideração a chegada e tendo
+     * Escalonador por Prioridade n�o-Preemptivo
+     * Faz o escalonamento n�o preemptivo levando em considera��o a chegada e tendo
      * como prioridade o valor de prioridade dos processos.
-     * Valoresultado maioresultado de prioridade indicam maior importância.
+     * Valor resultado maior resultado de prioridade indicam maior importancia.
      */
     public void escalonarPrioridadeNP() {
-        int tempoAtual;
-        Processo executando;
+    	Long tempoAtual;
+        Processo running;
 
         //se não há um conjunt de processos válidos não escalona
-        if(!validaEntrada(entrada))
+        if(!validateEntry(entry))
             return;
+        
+        logger.info("===================== ESCALONAMENTO POR PRIORIDADE =====================");
 
-        resultado = new ArrayList<>();
-        pronto = new ArrayList<>();
+        result = new ArrayDeque<>();
+        ready = new ArrayDeque<>();
 
-        ordenar(entrada, OrdenacaoProcessos.CHEGADA);
+        this.entry = sort(entry, OrdenacaoProcessos.CHEGADA);
 
-        mEspera = 0;
-        mTurnAround = 0;
-        tempoAtual = entrada.get(0).getChegada();
-        pronto.add(entrada.get(0));
-        entrada.remove(0);
+        entry.stream().forEach(p -> logInitProcess(p));
+        
+        tempoAtual = entry.getFirst().getChegada();
+        ready.add(entry.getFirst());
+        entry.removeFirst();
 
         //Enquanto existem processos na fila de entrada ou de Prontos
-        while (!pronto.isEmpty() || !entrada.isEmpty())
+        while (!ready.isEmpty() || !entry.isEmpty())
         {
             //se chegaram novos processos, coloca na fila de prontos
-            while (!entrada.isEmpty() && entrada.get(0).getChegada() <= tempoAtual)
-            {
-                if (entrada.get(0).getChegada() <= tempoAtual)
-                {
-                    pronto.add(entrada.get(0));
-                    entrada.remove(0);
-                }
-            }
-            if (!pronto.isEmpty())
+        	putEntryProcess(tempoAtual);
+            if (!ready.isEmpty())
             {
                 //pega o próximo processo de maior prioridade na fila de prontos
-                ordenar(pronto, OrdenacaoProcessos.PRIORIDADE);
-                executando = pronto.get(0);
-                pronto.remove(0);
-
-                //calcula a execução do processo atual
-                executando.setEspera(tempoAtual - executando.getChegada());
-                tempoAtual += executando.getDuracao();
-                executando.setTurnaround(tempoAtual - executando.getChegada());
-
-                //adiciona ao Arry de saída
-                resultado.add(executando);
-                //atualiza o tempo de termino de execução no gráfico
-
-                mEspera += executando.getEspera();
-                mTurnAround += executando.getTurnaround();
+                this.ready = sort(ready, OrdenacaoProcessos.PRIORIDADE);
+                
+                running = ready.getFirst();
+                
+                ready.removeFirst();
+                
+                logRunningProcess(running);
+                
+                calculateRuntimeProcess(running, tempoAtual);
+                
+                logSucess(running);
+                
+                result.add(running);
             }
             else
             {
                 //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entrada.isEmpty())
+                if(!entry.isEmpty())
                 {
                     //aponta para o próximo da fila para pegar o tempo de chegada
-                    int tempo = entrada.get(0).getChegada();
-                    tempoAtual = tempo;
+                	Long time = entry.getFirst().getChegada();
+                    tempoAtual = time;
                 }
             }
         }
-        //calcula os tempos médios de espera e turnaround
-        mEspera /= resultado.size();
-        mTurnAround /= resultado.size();
+
     }
-
-    /**
-     * Escalonador por Prioridade Preemptivo
-     * Faz o escalonamento preemptivo levando em consideração a chegada e tendo
-     * como prioridade o valor de prioridade dos processos.
-     * Valoresultado maioresultado de prioridade indicam maior importância.
-     */
-    public void escalonarPrioridadeP() {
-        int tempoAtual;
-        Processo executando = null;
-
-        //se não há um conjunt de processos válidos não escalona
-        if(!validaEntrada(entrada))
-            return;
-
-        resultado = new ArrayList<>();
-        pronto = new ArrayList<>();
-
-        ordenar(entrada, OrdenacaoProcessos.CHEGADA);
-
-        mEspera = 0;
-        mTurnAround = 0;
-        tempoAtual = entrada.get(0).getChegada();
-        pronto.add(entrada.get(0));
-        entrada.remove(0);
-
-        //Enquanto exixtem processos na fila de entrada ou de Prontos ou o último processo não acabou
-        while (!pronto.isEmpty() || !entrada.isEmpty() || executando != null)
-        {
-            //se chegaram novos processos, coloca na fila de prontos
-            while (!entrada.isEmpty() && entrada.get(0).getChegada() <= tempoAtual)
-            {
-                if (entrada.get(0).getChegada() <= tempoAtual)
-                {
-                    pronto.add(entrada.get(0));
-                    entrada.remove(0);
-                    ordenar(pronto, OrdenacaoProcessos.PRIORIDADE);
-                }
-            }
-
-            //verifica se tem processos na fila de prontos OU algum executando
-            if (!pronto.isEmpty() || executando != null)
-            {
-                //Verifica se há prioridade para interromper
-                if (executando != null) //se tem processo executando
-                {
-                    //processo na fila é de menor duração? Sim = troca
-                    if (!pronto.isEmpty())
-                        if (executando.getPrioridade() < pronto.get(0).getPrioridade())
-                        {
-                            executando.setInter(tempoAtual);//tempo onde foi interrompido
-                            pronto.add(executando);
-                            executando = pronto.get(0);
-                            pronto.remove(0);
-                            ordenar(pronto, OrdenacaoProcessos.PRIORIDADE);
-                        }
-                }
-                else //pega o primeiro dos prontos
-                {
-                    executando = pronto.get(0);
-                    pronto.remove(0);
-                    //atualiza o tempo de espera do processo
-                    executando.setEspera(executando.getEspera() + tempoAtual - executando.getInter());
-                }
-                //calcula a execução do processo atual
-                tempoAtual++;
-                executando.DecDuracao();
-
-                //se terminou adiciona ao Arry de saída
-                if (executando.getDuracao() == 0)
-                {
-                    executando.setTurnaround(tempoAtual - executando.getChegada());
-                    resultado.add(executando);
-                    //atualiza o tempo de termino de execução no gráfico
-
-                    mEspera += executando.getEspera();
-                    mTurnAround += executando.getTurnaround();
-                    executando = null;
-                }
-            }
-            else
-            {
-                 //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entrada.isEmpty())
-                {
-                    //aponta para o próximo da fila para pegar o tempo de chegada
-                    int tempo = entrada.get(0).getChegada();
-                    tempoAtual = tempo;
-                }
-            }
-        }
-        //calcula os tempos médios de espera e turnaround
-        mEspera /= resultado.size();
-        mTurnAround /= resultado.size();
-    }
-
-    /**
-     * Escalonador Round Robin
-     * Faz o escalonamento preemptivo Round Robin levando em consideração a
-     * ordem de chegada dos processos.
-     * @param quantum valor do quantum a ser utilizado no escalonamento
-     */
-    public void escalonarRR(int quantum) {
-        int tempoAtual;
-        Processo executando = null;
-
-        //se não há um conjunt de processos válidos não escalona
-        if(!validaEntrada(entrada) || quantum <= 0)
-            return;
-
-        resultado = new ArrayList<>();
-        pronto = new ArrayList<>();
-
-        ordenar(entrada, OrdenacaoProcessos.CHEGADA);
-
-        mEspera = 0;
-        mTurnAround = 0;
-        tempoAtual = entrada.get(0).getChegada();
-        pronto.add(entrada.get(0));
-        entrada.remove(0);
-
-        //Enquanto existem processos na fila de entrada ou de Prontos ou o último processo não acabou
-        while (!pronto.isEmpty() || !entrada.isEmpty() || executando != null)
-        {
-            //se chegaram novos processos, coloca na fila de prontos
-            while (!entrada.isEmpty() && entrada.get(0).getChegada() <= tempoAtual)
-            {
-                if (entrada.get(0).getChegada() <= tempoAtual)
-                {
-                    pronto.add(entrada.get(0));
-                    entrada.remove(0);
-                }
-            }
-
-            //verifica se tem processos na fila de prontos OU algum executando
-            if (!pronto.isEmpty() || executando != null)
-            {
-                if (executando != null) //se tem processo executando
-                {
-                    //tem processo na fila de pronto? Sim = Troca
-                    if (!pronto.isEmpty())
-                    {
-                        executando.setInter(tempoAtual);//tempo onde foi interrompido
-                        pronto.add(executando);
-                        executando = pronto.get(0);
-                        pronto.remove(0);
-                        //atualiza o tempo de espera do processo
-                        executando.setEspera(executando.getEspera() + tempoAtual - executando.getInter());
-                        //coloca no grafico e ajusta os valoresultado
-                    }
-                }
-                else
-                {
-                    //pega o primeiro dos prontos caso exista
-                    if (!pronto.isEmpty())
-                    {
-                        executando = pronto.get(0);
-                        pronto.remove(0);
-                        //atualiza o tempo de espera do processo
-                        executando.setEspera(executando.getEspera() + tempoAtual - executando.getInter());
-                    }
-                }
-                //calcula a execução do processo atual
-
-                if (executando.getDuracao() > quantum)
-                {
-                    tempoAtual += quantum;
-                    executando.DecDuracao(quantum);
-                }
-                else
-                {
-                    tempoAtual += executando.getDuracao();
-                    executando.DecDuracao(executando.getDuracao());
-                }
-
-                //se terminou adiciona ao Arry de saída
-                if (executando.getDuracao() == 0)
-                {
-                    executando.setTurnaround(tempoAtual - executando.getChegada());
-                    resultado.add(executando);
-                    mEspera += executando.getEspera();
-                    mTurnAround += executando.getTurnaround();
-                    executando = null;
-                }
-            }
-            else
-            {
-                 //há um intervalode tempo "livre", onde não há processos para executar
-                if(!entrada.isEmpty())
-                {
-                    //aponta para o próximo da fila para pegar o tempo de chegada
-                    int tempo = entrada.get(0).getChegada();
-                    tempoAtual = tempo;
-                }
-            }
-
-        }
-        //calcula os tempos médios de espera e turnaround
-        mEspera /= resultado.size();
-        mTurnAround /= resultado.size();
-    }
-
-	public List<Processo> getResultado() {
-		return resultado;
+	
+	public void calculateRuntimeProcess(Processo p, Long runtime) {
+		Long value =  p.getChegada() - runtime;
+		p.setEspera(value);
+		
+		runtime += p.getDuracao();
+		
+		logger.info("Tempo de espera do Processo: " + runtime/1000000000);
+		System.out.println();
+		
+		p.setTurnaround(runtime - p.getChegada());
 	}
-
-    /**
-     * Retorna uma lista de processos ordenada pelo nome dos processos.
-     * Estes processos armazenam seus tempo de espera e turnaround durante o escalonamento
-     * @return ArrayList de processos ou null
-     */	
+	
+	public void putEntryProcess(Long runtime) {
+		while (!entry.isEmpty() && entry.getFirst().getChegada() <= runtime) {
+            if (entry.getFirst().getChegada() <= runtime) {
+                ready.add(entry.getFirst());
+                entry.removeFirst();
+            }
+        }
+	}
+	
+	
+    private void logInitProcess(Processo p) {
+    	logger.info("Iniciando o processamento do Processo " + p.getId());
+    	System.out.println();
+    }
+    
+    private void logRunningProcess(Processo p ) {
+    	 System.out.println();
+    	 logger.info("Processo " + p.getId() + " em execu��o");
+         System.out.println();
+    }
+    private void logSucess(Processo p ) {
+    	logger.info("Processo " + p.getId() + " finalizado em " + 
+    	LocalTime.now().format(DateTimeFormatter.ofPattern("mm:ss.SSS")));
+	}
+    
+	public Deque<Processo> getResultado() {
+		return result;
+	}
 }

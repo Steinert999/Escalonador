@@ -2,10 +2,10 @@ package application;
 
 
 public class Processo {
-	 	private final int id;
-	    private int duracao,  chegada, prioridade;
-	    private int espera, turnaround;
-	    private int inter;
+	 	private final Long id;
+	    private Long duracao,  chegada, prioridade;
+	    private Long espera, turnaround;
+	    private Long inter;
 
 	    /**
 	     * instancia um novo Processos.
@@ -13,12 +13,12 @@ public class Processo {
 	     * @param chegada tempo de chegada do Processos
 	     * @param duracao tempo de duração do Processos
 	     */
-	    public Processo(int id, int chegada, int duracao){
+	    public Processo(Long id, Long chegada, Long duracao){
 	        this.id = id;
 	        this.chegada = chegada;
 	        this.duracao = duracao;
-	        this.prioridade = 0;
-	        espera = turnaround = 0;
+	        this.prioridade = 0L;
+	        espera = turnaround = 0L;
 	        inter = chegada;
 	    }
 
@@ -29,12 +29,12 @@ public class Processo {
 	     * @param duracao
 	     * @param prioridade
 	     */
-	    public Processo(int id, int chegada,int duracao, int prioridade) {
+	    public Processo(Long id, Long chegada,Long duracao, Long prioridade) {
 	        this.id = id;
 	        this.chegada = chegada;
 	        this.duracao = duracao;
 	        this.prioridade = prioridade;
-	        espera = turnaround = 0;
+	        espera = turnaround = 0L;
 	        inter = chegada;
 	    }
 	    
@@ -48,7 +48,7 @@ public class Processo {
 	        this.chegada = p.chegada;
 	        this.duracao = p.duracao;
 	        this.prioridade = p.prioridade;
-	        espera = turnaround = 0;
+	        espera = turnaround = 0L;
 	        inter = p.chegada;
 	    }
 
@@ -71,14 +71,14 @@ public class Processo {
 	    /**
 	     * @return o id (código) do Processos
 	     */
-	    public int getId() {
+	    public Long getId() {
 	        return id;
 	    }
 
 	    /**
 	     * @return a duracao do Processos
 	     */
-	    public int getDuracao() {
+	    public Long getDuracao() {
 	        return duracao;
 	    }
 
@@ -100,56 +100,56 @@ public class Processo {
 	    /**
 	     * @return o tempo de chegada do Processos
 	     */
-	    public int getChegada() {
+	    public Long getChegada() {
 	        return chegada;
 	    }
 
 	    /**
 	     * @return o valor da espera
 	     */
-	    public int getEspera() {
+	    public Long getEspera() {
 	        return espera;
 	    }
 
 	    /**
 	     * @param espera o valor da espera
 	     */
-	    public void setEspera(int espera) {
+	    public void setEspera(Long espera) {
 	        this.espera = espera;
 	    }
 
 	    /**
 	     * @return o turnaround
 	     */
-	    public int getTurnaround() {
+	    public Long getTurnaround() {
 	        return turnaround;
 	    }
 
 	    /**
 	     * @param turnaround o turnaround a ser atribuído
 	     */
-	    public void setTurnaround(int turnaround) {
+	    public void setTurnaround(Long turnaround) {
 	        this.turnaround = turnaround;
 	    }
 
 	    /**
 	     * @return a prioridade
 	     */
-	    public int getPrioridade() {
+	    public Long getPrioridade() {
 	        return prioridade;
 	    }
 
 	    /**
 	     * @return the inter
 	     */
-		public int getInter() {
+		public Long getInter() {
 			return inter;
 		}
 		
 		/**
 	     * @param inter the inter to set
 	     */
-	    public void setInter(int inter) {
+	    public void setInter(Long inter) {
 	        this.inter = inter;
 	    }
 }
