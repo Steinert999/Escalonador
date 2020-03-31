@@ -194,7 +194,7 @@ public class Escalonador {
 	}
     
 	public Deque<Processo> getResultado() {
-		System.out.println("RESULTADO" + result);
+		result.stream().map(Processo::toString).forEach(System.out::println);
 		return result;
 	}
 }

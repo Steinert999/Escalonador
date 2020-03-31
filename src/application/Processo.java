@@ -89,4 +89,10 @@ public class Processo {
     public void setInter(Long inter) {
         this.inter = inter;
     }
+
+	@Override
+	public String toString() {
+		return "Processo [id=" + id + ", duracao=" + duracao + ", chegada=" + chegada + ", prioridade=" + prioridade
+				+ ", espera=" + espera + ", turnaround=" + turnaround + ", inter=" + inter + "]";
+	}
 }
