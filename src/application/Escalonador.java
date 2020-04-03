@@ -37,7 +37,7 @@ public class Escalonador {
 		case CHEGADA:
 			return p.stream().sorted(Comparator.comparing(Processo::getChegada)).collect(Collectors.toCollection(ArrayDeque::new));
 		case DURACAO:
-			return  p.stream().sorted(Comparator.comparing(Processo::getDuracao)).collect(Collectors.toCollection(ArrayDeque::new));
+			return  p.stream().sorted(Comparator.comparing(Processo::getDuracao).reversed()).collect(Collectors.toCollection(ArrayDeque::new));
 		case PRIORIDADE:
 			return p.stream().sorted(Comparator.comparing(Processo::getPrioridade).reversed()).collect(Collectors.toCollection(ArrayDeque::new));
 		case NOME:
@@ -104,8 +104,8 @@ public class Escalonador {
             if (!ready.isEmpty()) {
                 this.ready = sort(ready, OrdenacaoProcessos.DURACAO);
                 running = ready.getFirst();
-                ready.removeFirst();                
                 logRunningProcess(running);
+                ready.removeFirst();                
                 calculateRuntimeProcess(running, currentTime);
                 logSucess(running);                
                 result.add(running);                
